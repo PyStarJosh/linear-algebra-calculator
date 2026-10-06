@@ -1,0 +1,23 @@
+[project]
+name = "linalg_calc"
+version = "0.1.0"
+description = "A linear algebra calculator capable of executing various matrix operations."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+linear-algebra-calculator = "linalg_calc:main"
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
