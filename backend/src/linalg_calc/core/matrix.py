@@ -9,13 +9,13 @@ from fractions import Fraction
 class Matrix:
     """A 2D matrix of real numbers."""
 
-    def __init__(self, rows: int, cols: int, data: list[list[int]]) -> None:
+    def __init__(self, rows: int, cols: int, data: list[list[Fraction]]) -> None:
         """Constructs a 2D matrix.
 
         Args:
             rows (int): The number of rows in the matrix.
             cols (int): The number of columns in the matrix.
-            data (list[list[int]]): The entry values for the matrix.
+            data (list[list[Fraction]]): The entry values for the matrix.
 
         Raises:
             ValueError: When rows and columns are set to value less than one.
@@ -24,10 +24,9 @@ class Matrix:
             raise ValueError("A matrix must have at least one row and column.")
         self._rows = rows
         self._cols = cols
-        if self._rows != len(data) or self._cols != len(data[0]):
+        if any ((self._rows != len(data), not data, self._cols != len(data[0]))):
             raise ValueError(
-                f"Inputted matrix entries creates a {len(data)}x{len(data[0])} "
-                f"matrix not the provided matrix dimensions: {self._rows}x{self._cols}"
+                f"Inputted data values don't meet the provided matrix dimensions: {self._rows}x{self._cols}"
             )
         else:
             self._data = data
@@ -74,6 +73,8 @@ class Matrix:
         Returns:
             bool: Whether the two matrices are equivalent.
         """
+        if not isinstance(other, Matrix):
+            return NotImplemented(f"Type {type(other)} can not be compared to a matrix for equivalence.")
         return all(
             (
                 self._data == other._data,
@@ -96,10 +97,10 @@ class Matrix:
             Matrix: The sum matrix of two matrices.
         """
         if not isinstance(other, Matrix):
-            return TypeError("A matrix can only be added to another matrix.")
+            raise TypeError("A matrix can only be added to another matrix.")
 
         if (self._rows, self._cols) != (other._rows, other._cols):
-            return ValueError("Matrices must have the same dimensions for addition.")
+            raise ValueError("Matrices must have the same dimensions for addition.")
 
         total_data = [
             [cell + entry for cell, entry in zip(x, y)]
@@ -122,10 +123,10 @@ class Matrix:
             Matrix: The difference matrix of the two matrices.
         """
         if not isinstance(other, Matrix):
-            return TypeError("An matrix can only be subtracted by another matrix.")
+            raise TypeError("An matrix can only be subtracted by another matrix.")
 
         if (self._rows, self._cols) != (other._rows, other._cols):
-            return ValueError("Matrices must have the same dimensions for subtraction.")
+            raise ValueError("Matrices must have the same dimensions for subtraction.")
 
         diff_data = [
             [cell - entry for cell, entry in zip(x, y)]
@@ -171,9 +172,9 @@ class Matrix:
             Matrix: The product matrix derived from multiplying two matrices.
         """
         if not isinstance(other, Matrix):
-            return TypeError(f"'{type(other)}' has no matrix multiplication method.")
+            return NotImplemented(f"'{type(other)}' has no matrix multiplication method.")
         if self._cols != other._rows:
-            raise ValueError
+            raise ValueError("The multiplicand matrix's columns must equal the multiplier's number of rows and vice versa.")
         product_data = [[] for _ in range(self._rows)]  # structures product matrix rows
 
         for i in range(self._rows):
@@ -195,15 +196,15 @@ class Matrix:
             Matrix: The resulting matrix of matrix^exponent.
         """
         if self._rows != self._cols:
-            return ValueError
+            raise ValueError("The multiplicand matrix's columns must equal the multiplier's number of rows and vice versa.")
 
         if exponent < 0:
-            return ValueError
+            raise ValueError("Exponents must equal to or greater than 0.")
         elif exponent == 0:
             return self.identity()
         elif exponent == 1:
             return Matrix(
-                rows=self._rows, cols=self._cols, data=self._data[:]
+                rows=self._rows, cols=self._cols, data=[row[:] for row in self._data]
             )  # returns copy of originial matrix
         else:
             res_matrix = self
@@ -251,7 +252,8 @@ class Matrix:
 
             if swap_row != pivot_row:
                 copy_matrix[pivot_row], copy_matrix[swap_row] = self._interchange(
-                    top_row=copy_matrix[pivot_row], low_row=copy_matrix[swap_row]
+                    top_row=copy_matrix[pivot_row],
+                    low_row=copy_matrix[swap_row]
                 )
 
             pivot_value = copy_matrix[pivot_row][col]
@@ -259,9 +261,7 @@ class Matrix:
             for n in range(pivot_row + 1, self._rows):
                 curr = copy_matrix[n][col]
                 if curr != 0:
-                    s_multiplier = (
-                        -curr / pivot_value
-                    )  # multiplier needed to row reduce
+                    s_multiplier = (-curr / pivot_value) # multiplier needed to row reduce
                     copy_matrix[n] = self._replacement(
                         scalar=s_multiplier,
                         sm_row=copy_matrix[pivot_row],
@@ -308,15 +308,10 @@ class Matrix:
 
         Returns:
             bool: A boolean value representing whether the matrix is invertible or singular.
-        """
-        return self.rref() == self.identity()
+        """            
+        return self._rows == self._cols and self.rref() == self.identity()
 
-    def spans_Rn(self) -> bool:
-        """Checks for a pivot in each row of the matrix to determine span of R^n.
-
-        Returns:
-            bool: A bool value representing whether the matrix spans Rn.
-        """
+    def pivot_rows(self):
         rref_matrix = self.rref()._data
         row_pivots = 0
         for row in rref_matrix:
@@ -324,17 +319,38 @@ class Matrix:
                 if col != 0:
                     row_pivots += 1
                     break
+        return row_pivots
+
+    def pivot_cols(self):
+        rref_matrix = self.rref()._data
+        pivot_cols = sum(1 for row in rref_matrix if any(x != 0 for x in row))
+        return pivot_cols
+
+    def dim_col_space(self):
+        return self.pivot_cols()
+
+    def dim_null_space(self):
+        return self._cols- self.pivot_cols()
+
+    def rank(self):
+        return self.pivot_cols()
+    
+    def spans_rn(self) -> bool:
+        """Checks for a pivot in each row of the matrix to determine span of R^n.
+
+        Returns:
+            bool: A bool value representing whether the matrix spans Rn.
+        """
+        row_pivots = self.pivot_cols()
         return row_pivots == self._rows
 
-    def linear_independence(self):  # IN PROGRESS (Incorrect Output)
-        rref_matrix = self.rref()._data
-        col_pivots = 0
-        for col in range(len(rref_matrix[0])):
-            for row in range(len(rref_matrix)):
-                if rref_matrix[row][col] != 0:
-                    col_pivots += 1
-                    break
-        return col_pivots == self._cols
+    def linear_independence(self):
+        """Checks for a pivot in each column to determine linear independence of the columns
+        Returns:
+            bool: A boolean value representing if the matrix is linearly independent.
+        """
+        pivot_cols = self.pivot_cols()
+        return pivot_cols == self._cols
 
     # MATRIX'S HELPER METHODS
     """These are the Matrix's class helper methods used to assist in 

@@ -1,6 +1,6 @@
 # Linear Algebra Calculator
 
-A linear algebra calculator written in Python. At its core is a small, dependency-free `Matrix` class that supports the standard matrix operations using ordinary Python operators (`+`, `-`, `*`, `@`, `**`). It can also row-reduce matrices to REF and RREF using exact fraction arithmetic, and answer theory questions such as "is this matrix invertible?" and "do the columns span Rᵐ?". Next up: augmented matrices for solving systems of linear equations, and eventually a web API (FastAPI).
+A linear algebra calculator written in Python. At its core is a small, dependency-free `Matrix` class that supports the standard matrix operations using ordinary Python operators (`+`, `-`, `*`, `@`, `**`). It can also row-reduce matrices to REF and RREF using exact fraction arithmetic, and answer theory questions from the pivots: rank, nullity, "do the columns span Rᵐ?", "are the columns linearly independent?" and "is this matrix invertible?". Next up: unit tests, then augmented matrices for solving systems of linear equations, and eventually a web API (FastAPI).
 
 ---
 
@@ -26,18 +26,19 @@ A linear algebra calculator written in Python. At its core is a small, dependenc
 | Area                                   | Status                                              |
 | -------------------------------------- | --------------------------------------------------- |
 | `Matrix` construction and printing     | ✅ Done                                             |
-| Equality (`==`)                        | ✅ Done                                             |
-| Addition / subtraction                 | ✅ Done (error handling needs a fix, see [gotchas](#known-limitations-and-gotchas)) |
+| Equality (`==`)                        | ✅ Done (comparing to a non-`Matrix` still errors, see [gotcha 1](#known-limitations-and-gotchas)) |
+| Addition / subtraction                 | ✅ Done (errors are raised properly)                |
 | Scalar multiplication (`A * c`, `c * A`) | ✅ Done                                           |
-| Matrix multiplication                  | ✅ Done                                             |
+| Matrix multiplication                  | ✅ Done (non-`Matrix` operand gives a confusing error, see [gotcha 1](#known-limitations-and-gotchas)) |
 | Integer powers (`A ** k`, k ≥ 0)       | ✅ Done                                             |
 | Identity matrix                        | ✅ Done                                             |
 | Exact arithmetic with `Fraction`       | ✅ Done (inside `ref()` / `rref()`)                 |
 | REF (row echelon form)                 | ✅ Done                                             |
 | RREF (reduced row echelon form)        | ✅ Done                                             |
-| `spans_Rn()`                           | ✅ Done                                             |
-| `is_invertible()`                      | ⚠️ Wrong for some non-square matrices              |
-| `linear_independence()`                | 🚧 In progress (gives wrong answers)               |
+| `pivot_rows()`, `pivot_cols()`, `rank()` | ✅ Done                                           |
+| `dim_col_space()`, `dim_null_space()`  | ✅ Done                                             |
+| `spans_rn()`, `linear_independence()`  | ✅ Done                                             |
+| `is_invertible()`                      | ✅ Done                                             |
 | Augmented matrices                     | 🗓️ Planned                                          |
 | Unit tests                             | 🗓️ Planned (none yet)                               |
 | Web API (FastAPI)                      | 🗓️ Planned (dependency declared, no endpoints yet)  |
@@ -198,7 +199,7 @@ Every operation returns a **new** `Matrix`. None of them modify the operands. Se
 | Power                 | `A ** k`       | `__pow__`     | `A` is square, `k` is a non-negative int |
 | Identity              | `A.identity()` | `identity`    | intended for square matrices             |
 
-⚠️ Several operations currently **return** an exception object instead of raising it. See [Known limitations](#known-limitations-and-gotchas).
+`+` and `-` raise `TypeError` for a non-`Matrix` operand and `ValueError` for mismatched sizes. `@` and `**` raise `ValueError` with a message when the dimensions don't fit, and `**` also raises it for a negative exponent.
 
 #### Addition and subtraction
 
@@ -349,13 +350,36 @@ Working bottom-up means each elimination only touches rows that haven't been fin
 
 These methods answer "theory" questions by looking at where the pivots of the RREF are. For an `m × n` matrix `A`:
 
-| Method                  | True when…                       | Equivalent statements                              | Status |
-| ----------------------- | -------------------------------- | -------------------------------------------------- | ------ |
-| `spans_Rn()`            | there's a pivot in every **row**    | the columns span Rᵐ; `Ax = b` is consistent for every `b`; `x ↦ Ax` is onto | ✅ |
-| `linear_independence()` | there's a pivot in every **column** | `Ax = 0` has only the trivial solution; `x ↦ Ax` is one-to-one | 🚧 wrong answers |
-| `is_invertible()`       | `A` is square and `rref(A) == I`  | pivot in every row and column; `det(A) ≠ 0`        | ⚠️ non-square bug |
+### Pivot counting helpers
 
-`spans_Rn()` takes the name from the usual textbook wording, but for an `m × n` matrix the space spanned is Rᵐ, where `m` is the number of **rows**.
+| Method             | Returns                                                  | Example: `[[1, 2], [2, 4]]` |
+| ------------------ | -------------------------------------------------------- | --------------------------- |
+| `pivot_rows()`     | number of non-zero rows in the RREF (= number of pivots) | `1` |
+| `pivot_cols()`     | number of pivot columns, counted from the RREF           | `1` |
+| `rank()`           | `pivot_cols()`                                           | `1` |
+| `dim_col_space()`  | `pivot_cols()` (dim Col A = rank)                        | `1` |
+| `dim_null_space()` | `cols - pivot_cols()` (dim Nul A = nullity)              | `1` |
+
+Every RREF row has at most one pivot and every pivot sits in its own column, so the number of pivot rows always equals the number of pivot columns: both are the rank. That's why `pivot_cols()` can count non-zero RREF rows, and why rank + nullity always equals the number of columns.
+
+### Boolean properties
+
+| Method                  | True when…                       | Equivalent statements                              | Implemented as |
+| ----------------------- | -------------------------------- | -------------------------------------------------- | -------------- |
+| `spans_rn()`            | there's a pivot in every **row**    | the columns span Rᵐ; `Ax = b` is consistent for every `b`; `x ↦ Ax` is onto | `pivot_cols() == rows` |
+| `linear_independence()` | there's a pivot in every **column** | `Ax = 0` has only the trivial solution; `x ↦ Ax` is one-to-one | `pivot_cols() == cols` |
+| `is_invertible()`       | `A` is square and `rref(A) == I`  | pivot in every row and column; `det(A) ≠ 0`        | square and `rref() == identity()` |
+
+How shape limits the answers:
+
+| Matrix | `spans_rn()` | `linear_independence()` | Why |
+| ------ | ------------ | ----------------------- | --- |
+| `[[1, 2]]` (wide, 1×2) | `True` | `False` | 2 vectors in R¹ must be dependent |
+| `[[1, 0], [0, 1], [1, 1]]` (tall, 3×2) | `False` | `True` | 2 vectors can't span R³ |
+| `[[1, 2], [2, 4]]` (singular) | `False` | `False` | rank 1 < 2 |
+| `[[1, 2], [3, 4]]` (invertible) | `True` | `True` | rank 2 = rows = columns |
+
+`spans_rn()` (renamed from `spans_Rn()` to follow snake_case) takes the name from the usual textbook wording, but for an `m × n` matrix the space spanned is Rᵐ, where `m` is the number of **rows**.
 
 **Design decision: compute facts in code, explain them with an LLM (later).** Every one of these properties follows exactly from the pivot positions, which the code already finds with exact arithmetic. That makes them cheap, deterministic and unit-testable. An LLM reading a matrix can miscount pivots without any sign of it, so it should only *explain* facts the code has already computed, never decide them. See [Roadmap](#roadmap).
 
@@ -388,7 +412,7 @@ So if you ever mutate `B._data[0][0] = 99`, `A` changes too. When you need an in
 copy = [row[:] for row in A._data]  # copies each row list
 ```
 
-Note that `A._data[:]` alone is **not** enough. It copies the outer list, but the inner row lists are still shared. (`__pow__` with `k == 1` currently does exactly this; see [Known limitations](#known-limitations-and-gotchas).)
+Note that `A._data[:]` alone is **not** enough. It copies the outer list, but the inner row lists are still shared. (`__pow__` with `k == 1` used to make exactly this mistake; it now copies each row.)
 
 ### 3. How `@=` works, and why we don't define `__imatmul__`
 
@@ -427,14 +451,11 @@ These are real behaviors of the current code. Many of them make good first ticke
 
 | # | Issue | Example | Suggested fix |
 | - | ----- | ------- | ------------- |
-| 1 | **`linear_independence()` gives wrong answers.** It counts every column that has *any* non-zero entry, not just pivot columns. | `[[1, 2]]` (two vectors in R¹) → `True`; `[[1, 2], [2, 4]]` → `True` | Count pivots: `True` when the number of pivots equals the number of columns. |
-| 2 | **`is_invertible()` is wrong for some non-square matrices.** `identity()` builds a non-square "identity", which a non-square RREF can match. | `[[1], [2]]` → `True` | Return `False` unless `_rows == _cols`. |
-| 3 | **Errors are returned, not raised.** `__add__`, `__sub__`, `__matmul__` (type check) and `__pow__` do `return ValueError(...)` / `return TypeError(...)`, so the caller gets an exception *object* back as if it were a result. | `print(Matrix(1,1,[[1]]) + Matrix(1,2,[[1,2]]))` prints the message instead of failing | Change `return` to `raise`. For a non-`Matrix` operand, `return NotImplemented` lets Python raise the standard `TypeError`. |
-| 4 | **Bare `raise ValueError`** in `__matmul__` and `__pow__` gives no message. | n/a | Include the sizes, e.g. `"Cannot multiply 2x3 by 2x3."` |
-| 5 | **`__eq__` crashes on non-matrices.** `A == 5` raises `AttributeError` instead of returning `False`. | `Matrix(1,1,[[1]]) == 1` | Start with `if not isinstance(other, Matrix): return NotImplemented`. |
-| 6 | **`A ** 1` shares row lists with `A`.** It copies with `self._data[:]`, which is a shallow copy (see [Design note 2](#2-python-assignment-copies-references-not-objects)). | Mutating `(A ** 1)._data[0][0]` changes `A` | Use `[row[:] for row in self._data]`. |
-| 7 | **Mixed number types.** Entries are ints/floats until `ref()`/`rref()` or scalar multiplication, which return `Fraction`s. | `A._data` vs `A.rref()._data` | Convert to `Fraction` once in the constructor. |
-| 8 | **Empty `data` crashes the constructor** with `IndexError` before the size check, because of `data[0]`. | `Matrix(1, 1, [])` | Check `len(data)` before reading `data[0]`, and check that every row has the same length. |
+| 1 | **`__eq__` and `__matmul__` call `NotImplemented(...)`** for a non-`Matrix` operand. `NotImplemented` is a constant, not a function, so this raises `TypeError: 'NotImplementedType' object is not callable` instead of returning `False` (for `==`) or a clear error (for `@`). | `A == 5`, `A @ 5` | `return NotImplemented` (no parentheses, no message). Python then makes `A == 5` return `False` and `A @ 5` raise the standard `TypeError`. |
+| 2 | **Docstrings for `__add__` / `__sub__` say `NotImplementedError`**, but the code raises `TypeError`. `__pow__` on a non-square matrix reuses the `@` error message. | n/a | Update the `Raises:` sections and give `__pow__` its own message, e.g. `"Only square matrices can be raised to a power."` |
+| 3 | **Mixed number types.** Entries are ints/floats until `ref()`/`rref()` or scalar multiplication, which return `Fraction`s. The constructor's type hint now says `list[list[Fraction]]`, but nothing converts the input. | `A._data` vs `A.rref()._data` | Convert to `Fraction` once in the constructor. |
+| 4 | **Empty `data` still crashes the constructor** with `IndexError`: the `any((...))` tuple evaluates `data[0]` before `any` runs, so `not data` doesn't protect it. **Ragged rows aren't caught**, since only the first row's length is checked. | `Matrix(1, 1, [])`; `Matrix(2, 2, [[1, 2], [3]])` is accepted | Check `len(data)` first with `or` (which short-circuits), then `all(len(row) == cols for row in data)`. |
+| 5 | **`identity()` on a non-square matrix** returns a non-square "identity". `is_invertible()` now guards against this, but direct calls don't. | `Matrix(2, 3, ...).identity()` | Raise `ValueError` unless the matrix is square. |
 
 ---
 
@@ -442,13 +463,15 @@ These are real behaviors of the current code. Many of them make good first ticke
 
 ### 1. One source of truth for pivots
 
-Add `pivot_columns() -> list[int]`, which reads the leftmost non-zero entry of each non-zero row of the RREF. Rebuild every property on top of it:
+**Done:** `pivot_rows()`, `pivot_cols()`, `rank()`, `dim_col_space()`, `dim_null_space()`, `spans_rn()` and `linear_independence()` all count pivots from the RREF.
+
+Next step: each of those calls `rref()` again, and `pivot_rows()` and `pivot_cols()` compute the same number. Add `pivot_columns() -> list[int]`, which returns the *positions* of the pivots (the leftmost non-zero entry of each non-zero row of the RREF), not just a count. Then rebuild every property on top of it, so one RREF answers everything:
 
 - `rank()` = number of pivots
-- `nullity()` = columns − rank
-- `spans_Rn()` = rank == rows
-- `linear_independence()` = rank == columns (fixes [gotcha 1](#known-limitations-and-gotchas))
-- `is_invertible()` = square and rank == rows (fixes [gotcha 2](#known-limitations-and-gotchas))
+- `dim_null_space()` (nullity) = columns − rank
+- `spans_rn()` = rank == rows
+- `linear_independence()` = rank == columns
+- `is_invertible()` = square and rank == rows (cheaper than building and comparing an identity matrix)
 
 Then add `analyze() -> dict`, which returns the RREF, the pivot columns, rank, nullity and every boolean property in one result. The frontend and any explanation layer both consume it.
 
@@ -494,7 +517,7 @@ A later `solve()` method can build on this classification.
 ### 3. Other planned work
 
 - **Unit tests** for everything that exists today (see [Testing](#testing)).
-- **Fixes from [Known limitations](#known-limitations-and-gotchas)**, starting with raising errors properly, since tests depend on it.
+- **Fixes from [Known limitations](#known-limitations-and-gotchas)**, starting with the `NotImplemented` calls and the constructor checks.
 - **More operations:** transpose, determinant, inverse, trace.
 - **"Show your work":** record each row operation during `ref()` / `rref()` so the calculator can display the steps.
 - **Optional LLM explanations:** a separate module that takes the `analyze()` result and asks a model to explain each fact and the theorem behind it, treating the computed values as ground truth. Keep it optional, so the calculator works without an API key and tests never call the network.
@@ -521,7 +544,7 @@ backend/tests/
 ├── test_matrix_basics.py  ← construction, __str__, __repr__, __eq__, validation
 ├── test_arithmetic.py     ← +, -, *, @, **, identity()
 ├── test_row_reduction.py  ← ref(), rref()
-└── test_properties.py     ← spans_Rn(), linear_independence(), is_invertible()
+└── test_properties.py     ← pivot helpers, rank(), spans_rn(), linear_independence(), is_invertible()
 ```
 
 Example tests:

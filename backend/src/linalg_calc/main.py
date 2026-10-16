@@ -2,6 +2,14 @@
 
 from linalg_calc.core.matrix import Matrix
 
-A = Matrix(rows=2, cols=3, data=[[1, 1, 6], [1, 1, 2]])
+A = Matrix(rows=4, cols=5, data=[
+    [2, -3, 0, 0, -9],
+    [0, 0, 3,0, 4],
+    [0, 0, 0, 1, 3],
+    [0, 0, 0, 0, 0]
+    ]
+)
 
-print(A.linear_independence())
+P = Matrix(rows=3, cols=1, data=[[4], [13], [-4]])
+
+print(A.rref())
