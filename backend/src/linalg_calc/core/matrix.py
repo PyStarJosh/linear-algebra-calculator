@@ -5,31 +5,11 @@ This module provides the Matrix class and functions for common matrix operations
 
 from fractions import Fraction
 
+from .base_matrix import BaseMatrix
 
-class Matrix:
+
+class Matrix(BaseMatrix):
     """A 2D matrix of real numbers."""
-
-    def __init__(self, rows: int, cols: int, data: list[list[Fraction]]) -> None:
-        """Constructs a 2D matrix.
-
-        Args:
-            rows (int): The number of rows in the matrix.
-            cols (int): The number of columns in the matrix.
-            data (list[list[Fraction]]): The entry values for the matrix.
-
-        Raises:
-            ValueError: When rows and columns are set to value less than one.
-        """
-        if rows <= 0 or cols <= 0:
-            raise ValueError("A matrix must have at least one row and column.")
-        self._rows = rows
-        self._cols = cols
-        if any ((self._rows != len(data), not data, self._cols != len(data[0]))):
-            raise ValueError(
-                f"Inputted data values don't meet the provided matrix dimensions: {self._rows}x{self._cols}"
-            )
-        else:
-            self._data = data
 
     def __str__(self) -> str:
         """Creates a user friendly matrix string for viewing.
@@ -42,8 +22,8 @@ class Matrix:
 
         # find longest numerical value to set right adjustment value for column
         widths: list[int] = [
-            max(len(cells[row][col]) for row in range(self._rows))
-            for col in range(self._cols)
+            max(len(cells[row][col]) for row in range(self.rows))
+            for col in range(self.cols)
         ]
 
         # joins rows' list into formatted string
@@ -57,31 +37,12 @@ class Matrix:
         return "\n".join(lines)
 
     def __repr__(self) -> str:
-        """Prints a programmer friendly representation of Matrix object.
+        """Prints a programmer friendly raw representation of Matrix object.
 
         Returns:
-            str: A string representation of Matrix object initialization
+            str: A string representation of Matrix object initialization.
         """
-        return f"Matrix(rows={self._rows!r}, cols={self._cols!r}, data={self._data!r})"
-
-    def __eq__(self, other: "Matrix") -> bool:
-        """Evaluates the equivalence of two matrices.
-
-        Args:
-            other (Matrix): A second matrix used for comparison.
-
-        Returns:
-            bool: Whether the two matrices are equivalent.
-        """
-        if not isinstance(other, Matrix):
-            return NotImplemented(f"Type {type(other)} can not be compared to a matrix for equivalence.")
-        return all(
-            (
-                self._data == other._data,
-                self._rows == other._rows,
-                self._cols == other._cols,
-            )
-        )
+        return f"Matrix(data={self._data!r})"
 
     def __add__(self, other: "Matrix") -> "Matrix":
         """Computes the sum of two matrices.
@@ -99,7 +60,7 @@ class Matrix:
         if not isinstance(other, Matrix):
             raise TypeError("A matrix can only be added to another matrix.")
 
-        if (self._rows, self._cols) != (other._rows, other._cols):
+        if (self.rows, self.cols) != (other.rows, other.cols):
             raise ValueError("Matrices must have the same dimensions for addition.")
 
         total_data = [
@@ -107,7 +68,7 @@ class Matrix:
             for x, y in zip(self._data, other._data)
         ]
 
-        return Matrix(rows=self._rows, cols=self._cols, data=total_data)
+        return Matrix(data=total_data)
 
     def __sub__(self, other: "Matrix") -> "Matrix":
         """Computes the difference matrix between two matrices.
@@ -125,7 +86,7 @@ class Matrix:
         if not isinstance(other, Matrix):
             raise TypeError("An matrix can only be subtracted by another matrix.")
 
-        if (self._rows, self._cols) != (other._rows, other._cols):
+        if (self.rows, self.cols) != (other.rows, other.cols):
             raise ValueError("Matrices must have the same dimensions for subtraction.")
 
         diff_data = [
@@ -133,7 +94,7 @@ class Matrix:
             for x, y in zip(self._data, other._data)
         ]
 
-        return Matrix(rows=self._rows, cols=self._cols, data=diff_data)
+        return Matrix(data=diff_data)
 
     def __mul__(self, scalar: float) -> "Matrix":
         """Computes scalar multiplication of a matrix.
@@ -145,7 +106,7 @@ class Matrix:
             Matrix: A new matrix with each entry multiplied by passed scalar value.
         """
         smult_data = [[Fraction(scalar) * entry for entry in row] for row in self._data]
-        return Matrix(rows=self._rows, cols=self._cols, data=smult_data)
+        return Matrix(data=smult_data)
 
     def __rmul__(self, scalar: float) -> "Matrix":
         """Allows for communicative scalar multiplication.
@@ -173,18 +134,18 @@ class Matrix:
         """
         if not isinstance(other, Matrix):
             return NotImplemented(f"'{type(other)}' has no matrix multiplication method.")
-        if self._cols != other._rows:
+        if self.cols != other.rows:
             raise ValueError("The multiplicand matrix's columns must equal the multiplier's number of rows and vice versa.")
-        product_data = [[] for _ in range(self._rows)]  # structures product matrix rows
+        product_data = [[] for _ in range(self.rows)]  # structures product matrix rows
 
-        for i in range(self._rows):
-            for j in range(other._cols):
+        for i in range(self.rows):
+            for j in range(other.cols):
                 res = 0
-                for k in range(other._rows):
+                for k in range(other.rows):
                     res += self._data[i][k] * other._data[k][j]
                 product_data[i].append(res)
 
-        return Matrix(rows=self._rows, cols=other._cols, data=product_data)
+        return Matrix(rows=self.rows, cols=other.cols, data=product_data)
 
     def __pow__(self, exponent: int) -> "Matrix":
         """Computes exponent of matrix
@@ -195,7 +156,7 @@ class Matrix:
         Returns:
             Matrix: The resulting matrix of matrix^exponent.
         """
-        if self._rows != self._cols:
+        if self.rows != self.cols:
             raise ValueError("The multiplicand matrix's columns must equal the multiplier's number of rows and vice versa.")
 
         if exponent < 0:
@@ -204,7 +165,7 @@ class Matrix:
             return self.identity()
         elif exponent == 1:
             return Matrix(
-                rows=self._rows, cols=self._cols, data=[row[:] for row in self._data]
+                rows=self.rows, cols=self.cols, data=[row[:] for row in self._data]
             )  # returns copy of originial matrix
         else:
             res_matrix = self
@@ -219,15 +180,15 @@ class Matrix:
         Returns:
             Matrix: The identity matrix.
         """
-        id_data = [[] for _ in range(self._rows)]
-        for row in range(self._rows):
-            for col in range(self._cols):
+        id_data = [[] for _ in range(self.rows)]
+        for row in range(self.rows):
+            for col in range(self.cols):
                 if row == col:
                     id_data[row].append(1)
                 else:
                     id_data[row].append(0)
 
-        return Matrix(rows=self._rows, cols=self._cols, data=id_data)
+        return Matrix(data=id_data)
 
     def ref(self) -> "Matrix":
         """Computes a row echelon form of the matrix via Gaussian elimination.
@@ -238,13 +199,13 @@ class Matrix:
         copy_matrix = [[Fraction(entry) for entry in row] for row in self._data]
         pivot_row = 0  # row the next pivot will be placed in
 
-        for col in range(self._cols):
-            if pivot_row >= self._rows:
+        for col in range(self.cols):
+            if pivot_row >= self.rows:
                 break
 
             # first row at or below pivot_row with a nonzero entry in this column
             swap_row = next(
-                (r for r in range(pivot_row, self._rows) if copy_matrix[r][col] != 0),
+                (r for r in range(pivot_row, self.rows) if copy_matrix[r][col] != 0),
                 None,
             )
             if swap_row is None:
@@ -258,7 +219,7 @@ class Matrix:
 
             pivot_value = copy_matrix[pivot_row][col]
 
-            for n in range(pivot_row + 1, self._rows):
+            for n in range(pivot_row + 1, self.rows):
                 curr = copy_matrix[n][col]
                 if curr != 0:
                     s_multiplier = (-curr / pivot_value) # multiplier needed to row reduce
@@ -270,7 +231,7 @@ class Matrix:
 
             pivot_row += 1
 
-        return Matrix(rows=self._rows, cols=self._cols, data=copy_matrix)
+        return Matrix(data=copy_matrix)
 
     def rref(self) -> "Matrix":
         """Computes a reduced row echelon form of the matrix via Gauss-Jordan elimination.
@@ -280,9 +241,9 @@ class Matrix:
         """
         ref_matrix: list[list[Fraction]] = self.ref()._data
 
-        for row in range(self._rows - 1, -1, -1):
+        for row in range(self.rows - 1, -1, -1):
             pivot_col = next(
-                (c for c in range(self._cols) if ref_matrix[row][c] != 0),
+                (c for c in range(self.cols) if ref_matrix[row][c] != 0),
                 None
             )
 
@@ -302,7 +263,7 @@ class Matrix:
                     )
             ref_matrix[row] = self._scale(scalar=1 / pivot, row=ref_matrix[row])
 
-        return Matrix(rows=self._rows, cols=self._cols, data=ref_matrix)
+        return Matrix(data=ref_matrix)
 
     def is_invertible(self) -> bool:
         """Determines and returns whether the matrix is invertible or singular.
@@ -310,7 +271,7 @@ class Matrix:
         Returns:
             bool: A boolean value representing whether the matrix is invertible or singular.
         """            
-        return self._rows == self._cols and self.rref() == self.identity()
+        return self.rows == self.cols and self.rref() == self.identity()
 
     def pivot_rows(self):
         rref_matrix = self.rref()._data
@@ -341,7 +302,7 @@ class Matrix:
         Returns:
             int: The dimension of null space.
         """
-        return self._cols - self.pivot_rows()
+        return self.cols - self.pivot_rows()
 
     def rank(self) -> int:
         """Returns rank of a matrix
@@ -358,7 +319,7 @@ class Matrix:
             bool: A bool value representing whether the matrix spans Rn.
         """
         row_pivots = self.pivot_cols()
-        return row_pivots == self._rows
+        return row_pivots == self.rows
 
     def linear_independence(self):
         """Checks for a pivot in each column to determine linear independence of the columns
@@ -366,51 +327,4 @@ class Matrix:
             bool: A boolean value representing if the matrix is linearly independent.
         """
         pivot_cols = self.pivot_cols()
-        return pivot_cols == self._cols
-
-    # MATRIX'S HELPER METHODS
-    """These are the Matrix's class helper methods used to assist in 
-    intermediary computations and various task.
-    """
-
-    def _replacement(
-        self, scalar: Fraction, sm_row: list[int], res_row: list[int]
-    ) -> list[int]:
-        """Takes a scalar multiplied row and adds it to another to row reduce.
-
-        Args:
-            scalar (Fraction): A scalar value used for multiplying
-            sm_row (list[int]): Scalar multiplied row.
-            res_row (list[int]): Row being added to and replaced.
-
-        Returns:
-            list[int]: Updated row reduced row.
-        """
-        scaled_row = [scalar * entry for entry in sm_row]
-        return [scaled_row[idx] + res_row[idx] for idx in range(self._cols)]
-
-    def _scale(self, scalar: Fraction, row: list[int]) -> list[int]:
-        """Scales a row via scalar multiplication
-
-        Args:
-            scalar (Fraction): A scalar value used for scalar multiplication
-            row (list[int]): List containing entries to be multiplied
-
-        Returns:
-            list[int]: Product list with scaled entries.
-        """
-        return [scalar * entry for entry in row]
-
-    def _interchange(
-        self, top_row: list[int], low_row: list[int]
-    ) -> tuple[list[int], list[int]]:
-        """_summary_
-
-        Args:
-            top_row (list[int]): Row to be lower via interchange
-            low_row (list[int]): Row to be risen via interchange.
-
-        Returns:
-            tuple[list[int], list[int]]: The two input rows swapped.
-        """
-        return low_row, top_row
+        return pivot_cols == self.cols
