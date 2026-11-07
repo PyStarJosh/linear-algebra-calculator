@@ -13,7 +13,7 @@ class Matrix(BaseMatrix):
 
     def __str__(self) -> str:
         # prepare cells for length tracking
-        cells: list[list[str]] = [[str(entry) for entry in row] for row in self._data]
+        cells: list[list[str]] = [[str(entry) for entry in row] for row in self.data]
 
         # find longest numerical value to set right adjustment value for column
         widths: list[int] = [
@@ -32,7 +32,7 @@ class Matrix(BaseMatrix):
         return "\n".join(lines)
 
     def __repr__(self) -> str:
-        return f"Matrix(data={self._data!r})"
+        return f"Matrix(data={self.data!r})"
 
     def __add__(self, other: "Matrix") -> "Matrix":
         """Computes the sum of two matrices.
@@ -55,7 +55,7 @@ class Matrix(BaseMatrix):
 
         total_data = [
             [cell + entry for cell, entry in zip(x, y)]
-            for x, y in zip(self._data, other._data)
+            for x, y in zip(self.data, other.data)
         ]
 
         return Matrix(data=total_data)
@@ -81,7 +81,7 @@ class Matrix(BaseMatrix):
 
         diff_data = [
             [cell - entry for cell, entry in zip(x, y)]
-            for x, y in zip(self._data, other._data)
+            for x, y in zip(self.data, other.data)
         ]
 
         return Matrix(data=diff_data)
@@ -95,7 +95,7 @@ class Matrix(BaseMatrix):
         Returns:
             Matrix: A new matrix with each entry multiplied by passed scalar value.
         """
-        smult_data = [[Fraction(scalar) * entry for entry in row] for row in self._data]
+        smult_data = [[Fraction(scalar) * entry for entry in row] for row in self.data]
         return Matrix(data=smult_data)
 
     def __rmul__(self, scalar: float) -> "Matrix":
@@ -132,7 +132,7 @@ class Matrix(BaseMatrix):
             for j in range(other.cols):
                 res = 0
                 for k in range(other.rows):
-                    res += self._data[i][k] * other._data[k][j]
+                    res += self.data[i][k] * other.data[k][j]
                 product_data[i].append(res)
 
         return Matrix(rows=self.rows, cols=other.cols, data=product_data)
@@ -155,7 +155,7 @@ class Matrix(BaseMatrix):
             return self.identity()
         elif exponent == 1:
             return Matrix(
-                rows=self.rows, cols=self.cols, data=[row[:] for row in self._data]
+                rows=self.rows, cols=self.cols, data=[row[:] for row in self.data]
             )  # returns copy of originial matrix
         else:
             res_matrix = self
@@ -186,7 +186,7 @@ class Matrix(BaseMatrix):
         Returns:
             Matrix: A row equivalent matrix in row echelon form.
         """
-        copy_matrix = [[Fraction(entry) for entry in row] for row in self._data]
+        copy_matrix = [[Fraction(entry) for entry in row] for row in self.data]
         pivot_row = 0  # row the next pivot will be placed in
 
         for col in range(self.cols):

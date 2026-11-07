@@ -21,14 +21,14 @@ class AugmentedMatrix(BaseMatrix):
         Returns:
             Matrix: The coefficient matrix.
         """
-        coefficient_data: list[Fraction] = [[row[entry_idx]] for entry_idx in range(self._aug_col) for row in self._data]
+        coefficient_data: list[Fraction] = [[row[entry_idx]] for entry_idx in range(self._aug_col) for row in self.data]
         return Matrix(data=coefficient_data)    
 
     def __repr__(self) -> str:
-        return f"AugmentedMatrix(data={self._data!r})"
+        return f"AugmentedMatrix(data={self.data!r})"
 
     def __str__(self) -> str:
-        entries: list[str] = [[str(cell) for cell in row] for row in self._data]
+        entries: list[str] = [[str(cell) for cell in row] for row in self.data]
         widths: list[int] = [
             max(len(entries[row][col]) for row in range(self.rows))
             for col in range(self.cols)
@@ -46,4 +46,8 @@ class AugmentedMatrix(BaseMatrix):
 
         return "\n".join(lines)
 
-    
+    def __eq__(self, other: "AugmentedMatrix") -> bool:
+        result = super().__eq__(other)
+        if result is NotImplemented:
+            return NotImplemented
+        return self.data == other.data
