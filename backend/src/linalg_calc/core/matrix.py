@@ -12,11 +12,6 @@ class Matrix(BaseMatrix):
     """A 2D matrix of real numbers."""
 
     def __str__(self) -> str:
-        """Creates a user friendly matrix string for viewing.
-
-        Returns:
-            str: A readable formatted str of the martrix.
-        """
         # prepare cells for length tracking
         cells: list[list[str]] = [[str(entry) for entry in row] for row in self._data]
 
@@ -37,11 +32,6 @@ class Matrix(BaseMatrix):
         return "\n".join(lines)
 
     def __repr__(self) -> str:
-        """Prints a programmer friendly raw representation of Matrix object.
-
-        Returns:
-            str: A string representation of Matrix object initialization.
-        """
         return f"Matrix(data={self._data!r})"
 
     def __add__(self, other: "Matrix") -> "Matrix":
