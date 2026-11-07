@@ -282,7 +282,8 @@ class Matrix:
 
         for row in range(self._rows - 1, -1, -1):
             pivot_col = next(
-                (c for c in range(self._cols) if ref_matrix[row][c] != 0), None
+                (c for c in range(self._cols) if ref_matrix[row][c] != 0),
+                None
             )
 
             if pivot_col is None:
@@ -326,14 +327,29 @@ class Matrix:
         pivot_cols = sum(1 for row in rref_matrix if any(x != 0 for x in row))
         return pivot_cols
 
-    def dim_col_space(self):
-        return self.pivot_cols()
+    def dim_col_space(self) -> int:
+        """Returns the dimensions of column space of a matrix.
 
-    def dim_null_space(self):
-        return self._cols- self.pivot_cols()
+        Returns:
+            int: The dimension of column space.
+        """
+        return self.pivot_rows()
 
-    def rank(self):
-        return self.pivot_cols()
+    def dim_null_space(self) -> int:
+        """Returns the dimensions of null space of a matrix.
+
+        Returns:
+            int: The dimension of null space.
+        """
+        return self._cols - self.pivot_rows()
+
+    def rank(self) -> int:
+        """Returns rank of a matrix
+
+        Returns:
+            int: The rank of a matrix.
+        """
+        return self.pivot_rows()
     
     def spans_rn(self) -> bool:
         """Checks for a pivot in each row of the matrix to determine span of R^n.
